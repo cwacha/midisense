@@ -1,0 +1,9 @@
+[Unit]
+Description=Display connected MIDI devices on a Raspberry Sense Hat
+
+[Service]
+ExecStart=/usr/bin/midisense.py --run -v
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,6 @@
+#!/bin/bash
+
+udevadm control --reload-rules
+systemctl daemon-reload
+
+
