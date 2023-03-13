@@ -158,3 +158,13 @@ sudo systemctl stop midisense
 sudo systemctl enable midisense
 sudo systemctl disable midisense
 ```
+
+# Run midisense on the Sense Hat Emulator
+
+Just add `--emu` to the main call
+
+```
+./midisense.py --run -v --emu
+```
+
+The app will tell you if the emulator packages are missing and how to install them.
