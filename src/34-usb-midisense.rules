@@ -1,2 +1,0 @@
-ACTION=="add|remove", SUBSYSTEM=="usb", RUN+="/usr/bin/midisense.py -u"
-

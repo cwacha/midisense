@@ -1,2 +1,2 @@
+ACTION=="add|remove", SUBSYSTEM=="usb", RUN+="/usr/bin/midisense.py -u"
 ACTION=="add|remove", SUBSYSTEM=="bluetooth", RUN+="/usr/bin/midisense.py -u"
-
