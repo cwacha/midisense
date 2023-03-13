@@ -9,13 +9,14 @@ import os
 import sys
 import argparse
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 sense = SenseHat()
 known_devices = []
 done = False
 update_now = False
 verbose = False
+debug = False
 
 class Cursor:
 	x = 0
@@ -42,7 +43,10 @@ WORKDIR = "/"
 def logmsg(msg, level="INFO"):
 	level = str.upper(level)
 
-	if(level == "DEBUG" or level == "INFO"):
+	if(level == "DEBUG"):
+		if(debug):
+			print(f"{level}: {msg}")
+	elif(level == "INFO"):
 		if(verbose):
 			print(f"{level}: {msg}")
 	elif(level == "WARN" or level == "ERROR"):
@@ -118,12 +122,12 @@ def RenderMiniText_plus(text):
 	if f > 1:
 		f = 1
 
-	#print("f=%f orig len=%d" % (f, len(text)))
+	logmsg("f=%f orig len=%d" % (f, len(text)), level="DEBUG")
 	for i in range(len(text)):
 		ti = round(f*i)
 		if(ti > 7):
 			ti = 7
-		#print("%s origin index=%d target index=%d" % (text[i], i, ti))
+		logmsg("%s origin index=%d target index=%d" % (text[i], i, ti), level="DEBUG")
 		c1 = getLetterClass(tmp[ti])
 		c2 = getLetterClass(text[i])
 		if(c1 < c2):
@@ -132,7 +136,7 @@ def RenderMiniText_plus(text):
 	while(tmp[-1] == None):
 		tmp.pop()
 
-	#print(tmp)
+	logmsg(tmp, level="DEBUG")
 	text = "".join(tmp)
 
 	return RenderMiniText(text)
@@ -251,7 +255,7 @@ def findRunProcess():
 		lines = subprocess.check_output(["/usr/bin/pgrep", "-f", f"{prog} --run"]).decode().split('\n')
 	except subprocess.CalledProcessError as err:
 		# not found
-		logmsg("Run process not running.", level="ERROR")
+		logmsg("Main process not running. Did you start one with --run?", level="ERROR")
 		return None
 
 	service_pid = lines[0]
@@ -259,7 +263,7 @@ def findRunProcess():
 
 def sendSignaltoPID(pid, signal):
 	if pid == None:
-		logmsg(f"Failed to send {signal} signal. No PID provided", level="ERROR")
+		logmsg(f"Failed to send {signal} signal. No process found.", level="ERROR")
 		return
 	subprocess.run(["/usr/bin/kill", f"-{signal}", pid])
 
@@ -295,36 +299,53 @@ def mainLoop():
 
 def main(argv):
 	global verbose
+	global debug
+	global sense
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--version", action="version", version="%(prog)s, Version " + VERSION)
-	parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
-	parser.add_argument("-D", "--daemon", dest="daemon", action="store_true", help="run as daemon in background")
-	parser.add_argument("-u", "--update", dest="update", action="store_true")
-	parser.add_argument("--quit", dest="terminate", action="store_true")
-	parser.add_argument("--run", dest="run", action="store_true")
+	parser.add_argument("-v", "--verbose", dest="verbose", action="store_true", help="show INFO messages")
+	parser.add_argument("--debug", dest="debug", action="store_true", help="show DEBUG messages")
+	parser.add_argument("--run", dest="run", action="store_true", help="run the service")
+	parser.add_argument("-D", "--daemon", dest="daemon", action="store_true", help="run as daemon in background. Must follow --run option")
+	parser.add_argument("-u", "--update", dest="update", action="store_true", help="trigger update on running service")
+	parser.add_argument("--quit", dest="terminate", action="store_true", help="terminate running service")
+	parser.add_argument("--emu", dest="emulate", action="store_true", help="Run display on Sense Hat Emulator")
 
 	options = parser.parse_args(argv)
 
 	if options.verbose:
 		verbose = True
+		
+	if options.debug:
+		verbose = True
+		debug = True
+		
+	if options.emulate:
+		try:
+			from sense_emu import SenseHat
+		except ImportError:
+			logmsg("Sense Hat Emulator not installed. try: sudo apt install sense-emu-tools", level="FATAL")
+			sys.exit(1)
+		sense = SenseHat()
 
 	if options.update:
 		pid = findRunProcess()
 		sendSignaltoPID(pid, "HUP")
 		sys.exit(0)
 
-	if options.terminate:
+	elif options.terminate:
 		pid = findRunProcess()
 		sendSignaltoPID(pid, "TERM")
 		sys.exit(0)
 
-	if options.daemon:
-		createDaemon()
-
-	if options.run:
+	elif options.run:
+		if options.daemon:
+			createDaemon()
 		mainLoop()
 
+	else:
+		parser.print_help()
 
 	#m = []
 	#m.append("Launchkey Mini")
