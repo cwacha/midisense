@@ -41,7 +41,7 @@ WORKDIR = "/"
 
 def logmsg(msg, level="INFO"):
 	level = str.upper(level)
-	
+
 	if(level == "DEBUG" or level == "INFO"):
 		if(verbose):
 			print(f"{level}: {msg}")
@@ -92,7 +92,7 @@ def getLetterClass(letter):
 		return 3
 	else:
 		return 4
-	
+
 def RenderMiniText(text):
 	pixels = []
 
@@ -111,16 +111,16 @@ def RenderMiniText(text):
 
 def RenderMiniText_plus(text):
 	pixels = []
-	
+
 	tmp = [None] * 8
-	
+
 	f = 8 / len(text)
 	if f > 1:
 		f = 1
-		
+
 	#print("f=%f orig len=%d" % (f, len(text)))
 	for i in range(len(text)):
-		ti = round(f*i) 
+		ti = round(f*i)
 		if(ti > 7):
 			ti = 7
 		#print("%s origin index=%d target index=%d" % (text[i], i, ti))
@@ -128,10 +128,10 @@ def RenderMiniText_plus(text):
 		c2 = getLetterClass(text[i])
 		if(c1 < c2):
 			tmp[ti] = text[i]
-	
+
 	while(tmp[-1] == None):
 		tmp.pop()
-		
+
 	#print(tmp)
 	text = "".join(tmp)
 
@@ -139,23 +139,23 @@ def RenderMiniText_plus(text):
 
 def DrawMiniText(text):
 	pixels = RenderMiniText_plus(text)
-	
+
 	for pixel in pixels:
 		sense.set_pixel(cursor.x, cursor.y, pixel)
 		MoveCursor()
-	
+
 	NewLine(True)
 
-	
+
 def ResetCursor():
 	global cursor
 	cursor.x = 0
 	cursor.y = 0
-	
+
 def MoveCursor():
 	global cursor
 	cursor.x = cursor.x + 1
-	
+
 	if cursor.x > 7:
 		cursor.x = 0
 		cursor.y = cursor.y + 1
@@ -164,24 +164,24 @@ def MoveCursor():
 
 def NewLine(soft = False):
 	global cursor
-	
+
 	if soft:
 		if cursor.x == 0:
 			return
-			
+
 	cursor.x = 0
 	cursor.y = cursor.y + 1
 	if cursor.y > 7:
 		cursor.y = 0
-		
+
 def ClearScreen():
 	ResetCursor()
 	sense.clear(black)
-	
+
 
 def GetMidiInputs():
 	inputs = []
-	
+
 	lines = subprocess.check_output("aconnect -i -l", shell=True).decode().split('\n')
 	for line in lines:
 		if not re.match("^client", line):
@@ -193,9 +193,9 @@ def GetMidiInputs():
 		name_search = re.search(".*'(.*)'", line)
 		if not name_search:
 			continue
-		
+
 		name = name_search.group(1)
-			
+
 		inputs.append(name)
 
 	return inputs
@@ -204,14 +204,14 @@ def DrawDeviceScreen(devices):
 	ClearScreen()
 	for devicename in devices:
 		DrawMiniText(devicename)
-	
+
 	if len(devices) == 0:
 		sense.show_letter("-", text_colour=red)
 
 def UpdateKnownDevices(devices):
 	global known_devices
 	modified = False
-	
+
 	for device in devices:
 		if not device in known_devices:
 			# add device
@@ -219,7 +219,7 @@ def UpdateKnownDevices(devices):
 			logmsg("added %s" % device)
 			sense.show_message(device, scroll_speed = 0.05, text_colour=green)
 			modified = True
-	
+
 	known_devices_temp = known_devices
 	for known_device in known_devices_temp:
 		if not known_device in devices:
@@ -228,9 +228,9 @@ def UpdateKnownDevices(devices):
 			logmsg("removed %s" % known_device)
 			sense.show_message(known_device, scroll_speed = 0.05, text_colour=red)
 			modified = True
-	
+
 	return modified
-		
+
 def sigterm_handler(signum, frame):
 	global done
 	done = True
@@ -253,7 +253,7 @@ def findRunProcess():
 		# not found
 		logmsg("Run process not running.", level="ERROR")
 		return None
-		
+
 	service_pid = lines[0]
 	return service_pid
 
@@ -265,7 +265,7 @@ def sendSignaltoPID(pid, signal):
 
 def mainLoop():
 	global update_now
-	
+
 	update_now = True
 	updated = True
 	i = 0
@@ -275,27 +275,27 @@ def mainLoop():
 			logmsg("Triggering update on timer")
 			update_now = True
 			i = 0
-		
+
 		if update_now:
 			update_now = False
 			logmsg("Updating")
 			inputs = GetMidiInputs()
 			updated = UpdateKnownDevices(inputs)
-		
+
 		if updated:
 			DrawDeviceScreen(known_devices)
-			
+
 		time.sleep(1)
 
 	ClearScreen()
 	logmsg("Good Bye!")
 	sense.show_message("Bye", scroll_speed = 0.05, text_colour=red)
-	
+
 
 
 def main(argv):
 	global verbose
-	
+
 	parser = argparse.ArgumentParser()
 	parser.add_argument("--version", action="version", version="%(prog)s, Version " + VERSION)
 	parser.add_argument("-v", "--verbose", dest="verbose", action="store_true")
@@ -303,37 +303,37 @@ def main(argv):
 	parser.add_argument("-u", "--update", dest="update", action="store_true")
 	parser.add_argument("--quit", dest="terminate", action="store_true")
 	parser.add_argument("--run", dest="run", action="store_true")
-	
+
 	options = parser.parse_args(argv)
-		
+
 	if options.verbose:
 		verbose = True
-		
+
 	if options.update:
 		pid = findRunProcess()
 		sendSignaltoPID(pid, "HUP")
 		sys.exit(0)
-	
+
 	if options.terminate:
 		pid = findRunProcess()
 		sendSignaltoPID(pid, "TERM")
 		sys.exit(0)
 
 	if options.daemon:
-		createDaemon()		
+		createDaemon()
 
 	if options.run:
 		mainLoop()
-		
-	
+
+
 	#m = []
 	#m.append("Launchkey Mini")
 	#m.append("Lauchpad Mini mkII")
 	#m.append("iPhone of Mickey")
 	#m.append("OP-1")
 	#DrawDeviceScreen(m)
-	
+
 
 if __name__ == "__main__":
 	sys.exit(main(sys.argv[1:]))
-			
+
